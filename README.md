@@ -5,7 +5,6 @@ CryptoTestament is a dApp deployed on the RSK network (https://rsk.co/) that all
 
 RSK MainNet dApp: https://cryptotestament.io/
 
----
 
 ## Truffle test cases
 
