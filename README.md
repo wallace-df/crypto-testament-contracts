@@ -1,5 +1,5 @@
 # CryptoTestament
-Solidity smart contract for CryptoTestament with Truffle integration.
+Solidity smart contract for CryptoTestament with Truffle integration for testing.
 
 CryptoTestament is a dApp deployed on the RSK network (https://rsk.co/) that allows BTC holders to create digital testaments powered by smart contracts.
 
