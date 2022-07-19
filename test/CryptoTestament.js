@@ -300,7 +300,6 @@ contract('CryptoTestament', function (accounts) {
     assert.equal(errorRaised, true, 'Assert failure.');
   });
 
-
   it('Try and fail to update testament - Invalid proof of life threshold', async function () {
     let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
     let cryptoTestament = await CryptoTestament.at(testamentInfo.testamentAddress);
