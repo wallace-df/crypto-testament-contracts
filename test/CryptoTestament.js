@@ -21,6 +21,16 @@ const advanceTime = (time) => {
   })
 }
 
+const extractCallError = (err) => {
+  if (!err.reason && err.message) {
+    let substr = "Returned error: VM Exception while processing transaction: revert";
+    let pos = err.message.indexOf(substr);
+    if (pos >= 0) {
+      err.reason = err.message.substring(pos + substr.length).trim();
+    }             
+  }
+}
+
 contract('CryptoTestament', function (accounts) {
   let serviceInstance;
   let serviceOwnerAddress = accounts[0];
@@ -45,6 +55,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.setServiceFeeRate(50, { from: randomAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot set service fee rate: sender is not the service owner.', 'Check error reason.');
       errorRaised = true;
     }
@@ -56,6 +67,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.withdrawServiceFees({ from: randomAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot withdraw service fees: sender is not the service owner.', 'Check error reason.');
       errorRaised = true;
     }
@@ -85,6 +97,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.cancelTestament({ from: randomAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot cancel testament: testament not found.', 'Check error reason.');
       errorRaised = true;
     }
@@ -96,6 +109,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.reactivateTestament({ from: randomAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot reactivate testament: testament not found.', 'Check error reason.');
       errorRaised = true;
     }
@@ -107,6 +121,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.executeTestamentOf(randomAddress, { from: randomAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot execute testament: testament not found.', 'Check error reason.');
       errorRaised = true;
     }
@@ -118,6 +133,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.withdrawTestamentFunds(web3.utils.toWei('0.01', 'ether'), { from: randomAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot withdraw testament funds: testament not found.', 'Check error reason.');
       errorRaised = true;
     }
@@ -129,6 +145,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.setupTestament('0x0000000000000000000000000000000000000000', 30 * 24 * 3600, "", "", { from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot deploy testament: beneficiary address must be non-null.', 'Check error reason.');
       errorRaised = true;
     }
@@ -140,6 +157,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.setupTestament(beneficiaryAddress, (30 * 24 * 3600) - 1, "", "", { from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot deploy testament: proof of life threshold must be >= 30 days.', 'Check error reason.');
       errorRaised = true;
     }
@@ -151,6 +169,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.setupTestament(beneficiaryAddress, 30 * 24 * 3600, "", "", { from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot deploy testament: encrypted key must be set.', 'Check error reason.');
       errorRaised = true;
     }
@@ -162,6 +181,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.setupTestament(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey", "", { from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot deploy testament: encrypted testament info must be set.', 'Check error reason.');
       errorRaised = true;
     }
@@ -199,6 +219,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey", "encryptedInfo", { from: randomAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot update testament: sender is not the testator.', 'Check error reason.');
       errorRaised = true;
     }
@@ -213,6 +234,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await cryptoTestament.cancelTestament({ from: randomAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot cancel testament: sender is not the testator.');
       errorRaised = true;
     }
@@ -226,6 +248,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await cryptoTestament.reactivateTestament({ from: randomAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot reactivate testament: sender is not the testator.', 'Check error reason.');
       errorRaised = true;
     }
@@ -237,10 +260,13 @@ contract('CryptoTestament', function (accounts) {
     let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
     try {
       await web3.eth.sendTransaction({ from: randomAddress, to: testamentInfo.testamentAddress, value: web3.utils.toWei('0.001', 'ether') });
-    } catch (errObj) {
-      let errKey = Object.keys(errObj.data)[0];
-      let err = errObj.data[errKey];
-      assert.equal(err.reason, 'Cannot deposit funds: sender is not the testator.', 'Check error reason.');
+    } catch (err) {
+      if (err.data) {
+        let errKey = Object.keys(err.data)[0];
+        if (err.data[errKey]) {
+          assert.equal(err.data[errKey].reason, 'Cannot deposit funds: sender is not the testator.', 'Check error reason.');
+        }
+      }
       errorRaised = true;
     }
     assert.equal(errorRaised, true, 'Assert failure.');
@@ -253,6 +279,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await cryptoTestament.withdrawFunds(web3.utils.toWei('0.01', 'ether'), { from: randomAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot withdraw testament funds: sender is not the testator.', 'Check error reason.');
       errorRaised = true;
     }
@@ -266,6 +293,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await cryptoTestament.updateDetails('0x0000000000000000000000000000000000000000', 30 * 24 * 3600, "", "", { from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot update testament: beneficiary address must be non-null.', 'Check error reason.');
       errorRaised = true;
     }
@@ -280,6 +308,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await cryptoTestament.updateDetails(beneficiaryAddress, (30 * 24 * 3600) - 1, "", "", { from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot update testament: proof of life threshold must be >= 30 days.', 'Check error reason.');
       errorRaised = true;
     }
@@ -293,6 +322,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "", "", { from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot update testament: encrypted key must be set.', 'Check error reason.');
       errorRaised = true;
     }
@@ -306,6 +336,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey", "", { from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot update testament: encrypted testament info must be set.', 'Check error reason.');
       errorRaised = true;
     }
@@ -395,6 +426,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.withdrawTestamentFunds(web3.utils.toWei('0.01', 'ether'), { from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot withdraw testament funds: amount should be <= the testament balance.', 'Check error reason.');
       errorRaised = true;
     }
@@ -451,6 +483,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.reactivateTestament({ from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot reactivate testament: testament is not CANCELLED.', 'Check error reason.');
       errorRaised = true;
     }
@@ -462,6 +495,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.executeTestamentOf(testatorAddress);
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot execute testament: last proof of life is still active.', 'Check error reason.');
       errorRaised = true;
     }
@@ -481,6 +515,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey", "encryptedInfo", { from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot update testament: testament is not LOCKED.', 'Check error reason.');
       errorRaised = true;
     }
@@ -494,6 +529,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await cryptoTestament.cancelTestament({ from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot cancel testament: testament is not LOCKED.', 'Check error reason.');
       errorRaised = true;
     }
@@ -505,10 +541,13 @@ contract('CryptoTestament', function (accounts) {
     let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
     try {
       await web3.eth.sendTransaction({ from: testatorAddress, to: testamentInfo.testamentAddress, value: web3.utils.toWei('0.01', 'ether') });
-    } catch (errObj) {
-      let errKey = Object.keys(errObj.data)[0];
-      let err = errObj.data[errKey];
-      assert.equal(err.reason, 'Cannot deposit funds: testament is not LOCKED.', 'Check error reason.');
+    } catch (err) {
+      if (err.data) {
+        let errKey = Object.keys(err.data)[0];
+        if (err.data[errKey]) {
+          assert.equal(err.data[errKey].reason, 'Cannot deposit funds: testament is not LOCKED.', 'Check error reason.');
+        }
+      }
       errorRaised = true;
     }
     assert.equal(errorRaised, true, 'Assert failure.');
@@ -519,6 +558,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.executeTestamentOf(testatorAddress);
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot execute testament: testament is not LOCKED.', 'Check error reason.');
       errorRaised = true;
     }
@@ -569,6 +609,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey", "encryptedInfo", { from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot update testament: last proof of life has expired.', 'Check error reason.');
       errorRaised = true;
     }
@@ -581,6 +622,7 @@ contract('CryptoTestament', function (accounts) {
       await advanceTime(31 * 24 * 3600); // 31 days ahead
       await serviceInstance.cancelTestament({ from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot cancel testament: last proof of life has expired.');
       errorRaised = true;
     }
@@ -592,6 +634,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.reactivateTestament({ from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot reactivate testament: testament is not CANCELLED.');
       errorRaised = true;
     }
@@ -603,10 +646,13 @@ contract('CryptoTestament', function (accounts) {
     let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
     try {
       await web3.eth.sendTransaction({ from: testatorAddress, to: testamentInfo.testamentAddress, value: web3.utils.toWei('0.01', 'ether') });
-    } catch (errObj) {
-      let errKey = Object.keys(errObj.data)[0];
-      let err = errObj.data[errKey];
-      assert.equal(err.reason, 'Cannot deposit funds: last proof of life has expired.', 'Check error reason.');
+    } catch (err) {
+      if (err.data) {
+        let errKey = Object.keys(err.data)[0];
+        if (err.data[errKey]) {
+          assert.equal(err.data[errKey].reason, 'Cannot deposit funds: last proof of life has expired.', 'Check error reason.');
+        }
+      }
       errorRaised = true;
     }
     assert.equal(errorRaised, true, 'Assert failure.');
@@ -617,6 +663,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.withdrawTestamentFunds(web3.utils.toWei('0.00', 'ether'), { from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot withdraw testament funds: last proof of life has expired.', 'Check error reason.');
       errorRaised = true;
     }
@@ -650,6 +697,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await cryptoTestament.updateDetails(beneficiaryAddress, 30 * 24 * 3600, "encryptedKey", "encryptedInfo", { from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot update testament: testament is not LOCKED.', 'Check error reason.');
       errorRaised = true;
     }
@@ -662,6 +710,7 @@ contract('CryptoTestament', function (accounts) {
       await advanceTime(31 * 24 * 3600); // 31 days ahead
       await serviceInstance.cancelTestament({ from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot cancel testament: testament is not LOCKED.');
       errorRaised = true;
     }
@@ -673,6 +722,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.reactivateTestament({ from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot reactivate testament: testament is not CANCELLED.', 'Check error reason.');
       errorRaised = true;
     }
@@ -684,10 +734,13 @@ contract('CryptoTestament', function (accounts) {
     let testamentInfo = await serviceInstance.testamentDetailsOf(testatorAddress);
     try {
       await web3.eth.sendTransaction({ from: testatorAddress, to: testamentInfo.testamentAddress, value: web3.utils.toWei('0.01', 'ether') });
-    } catch (errObj) {
-      let errKey = Object.keys(errObj.data)[0];
-      let err = errObj.data[errKey];
-      assert.equal(err.reason, 'Cannot deposit funds: testament is not LOCKED.', 'Check error reason.');
+    } catch (err) {
+      if (err.data) {
+        let errKey = Object.keys(err.data)[0];
+        if (err.data[errKey]) {
+          assert.equal(err.data[errKey].reason, 'Cannot deposit funds: testament is not LOCKED.', 'Check error reason.');
+        }
+      }
       errorRaised = true;
     }
     assert.equal(errorRaised, true, 'Assert failure.');
@@ -698,6 +751,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.withdrawTestamentFunds(web3.utils.toWei('0.00', 'ether'), { from: testatorAddress });
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot withdraw testament funds: testament is not LOCKED/CANCELLED.', 'Check error reason.');
       errorRaised = true;
     }
@@ -709,6 +763,7 @@ contract('CryptoTestament', function (accounts) {
     try {
       await serviceInstance.executeTestamentOf(testatorAddress);
     } catch (err) {
+      extractCallError(err);
       assert.equal(err.reason, 'Cannot execute testament: testament is not LOCKED.', 'Check error reason.');
       errorRaised = true;
     }
