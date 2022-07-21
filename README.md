@@ -10,9 +10,13 @@ Live website: https://cryptotestament.io/
 
 ### Install project dependencies
 
-`yarn install`
+```shell
+yarn install
+```
 
 ### Run
 
-`truffle test`
+```shell
+truffle test
+```
 
